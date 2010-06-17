@@ -32,3 +32,10 @@
           (if (.isUserLoggedIn user-service)
             (application request)
             {:status 302 :headers {"Location" (.createLoginURL user-service (uri-fn request))}}))))))
+
+(defn wrap-requiring-admin [application]
+  (fn [request]
+    (let [{:keys [user-service]} (user-info request)]
+      (if (.isUserAdmin user-service)
+        (application request)
+        {:status 403 :body "Access denied. You must be logged in as admin user!"}))))

@@ -31,3 +31,22 @@
       (let [wrapped-app-with-no-url (users/wrap-requiring-login dummy-app)]
         (is (= dummy-response (wrapped-app-with-no-url request)))))))
 
+(deftest wrap-requiring-admin
+  (testing "rejects request when user is logged in but not admin"
+           (let [fake-user-service (proxy [com.google.appengine.api.users.UserService] []
+                                     (isUserLoggedIn [] true)
+                                     (isUserAdmin [] false))
+                 request {:appengine/user-info {:user "instance of User"
+                                                :user-service fake-user-service}}
+                 wrapped-app (users/wrap-requiring-admin #(throw (Exception.)))]
+             (is (= {:status 403 :body "Access denied. You must be logged in as admin user!"}
+                    (wrapped-app request)))))
+  (testing "allows request to pass when user is logged in as admin"
+           (let [fake-user-service (proxy [com.google.appengine.api.users.UserService] []
+                                     (isUserLoggedIn [] true)
+                                     (isUserAdmin [] true))
+                 request {:appengine/user-info {:user "instance of User" :user-service fake-user-service}}
+                 dummy-response {:status 200 :body "Hello"}
+                 dummy-app (fn [request] dummy-response)
+                 wrapped-app (users/wrap-requiring-admin dummy-app)]
+             (is (= dummy-response (wrapped-app request))))))
